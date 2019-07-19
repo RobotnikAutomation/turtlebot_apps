@@ -34,6 +34,7 @@
 #include <sensor_msgs/Image.h>
 #include <visualization_msgs/Marker.h>
 #include <turtlebot_msgs/SetFollowState.h>
+#include <std_msgs/Bool.h>
 
 #include "dynamic_reconfigure/server.h"
 #include "turtlebot_follower/FollowerConfig.h"
@@ -110,13 +111,14 @@ private:
     cmdpub_ = private_nh.advertise<geometry_msgs::Twist> ("cmd_vel", 1);
     markerpub_ = private_nh.advertise<visualization_msgs::Marker>("marker",1);
     bboxpub_ = private_nh.advertise<visualization_msgs::Marker>("bbox",1);
+    statefollow_ = private_nh.advertise<std_msgs::Bool>("state_follow", 1);
+    
     sub_= nh.subscribe<sensor_msgs::Image>("depth/image_rect", 1, &TurtlebotFollower::imagecb, this);
 
     switch_srv_ = private_nh.advertiseService("change_state", &TurtlebotFollower::changeModeSrvCb, this);
 
     config_srv_ = new dynamic_reconfigure::Server<turtlebot_follower::FollowerConfig>(private_nh);
-    dynamic_reconfigure::Server<turtlebot_follower::FollowerConfig>::CallbackType f =
-        boost::bind(&TurtlebotFollower::reconfigure, this, _1, _2);
+    dynamic_reconfigure::Server<turtlebot_follower::FollowerConfig>::CallbackType f = boost::bind(&TurtlebotFollower::reconfigure, this, _1, _2);
     config_srv_->setCallback(f);
   }
 
@@ -225,6 +227,7 @@ private:
     }
 
     publishBbox();
+    publishStateFollow();
   }
 
   bool changeModeSrvCb(turtlebot_msgs::SetFollowState::Request& request,
@@ -307,11 +310,19 @@ private:
     //only if using a MESH_RESOURCE marker type:
     bboxpub_.publish( marker );
   }
+  
+  void publishStateFollow()
+  {
+	  std_msgs::Bool state;
+	  state.data = enabled_;
+	  statefollow_.publish (state);
+  }
 
   ros::Subscriber sub_;
   ros::Publisher cmdpub_;
   ros::Publisher markerpub_;
   ros::Publisher bboxpub_;
+  ros::Publisher statefollow_;
 };
 
 PLUGINLIB_DECLARE_CLASS(turtlebot_follower, TurtlebotFollower, turtlebot_follower::TurtlebotFollower, nodelet::Nodelet);
